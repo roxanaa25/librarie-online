@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+
+{% block title %}Coșul meu | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="page-title">
+    <h1>Coșul meu</h1>
+    <span>Verifică produsele adăugate, modifică cantitățile și finalizează comanda.</span>
+</section>
+
+<section>
+    <div id="cart-container">
+        <div class="empty-state">
+            <p>Se încarcă produsele din coș...</p>
+        </div>
+    </div>
+
+    <div id="cart-summary"></div>
+</section>
+
+<form style="display:none;">
+    {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function escapeHTML(value) {
+        if (value === null || value === undefined) {
+            return "";
+        }
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function loadCart() {
+        fetch("/cart/api/items/", {
+            credentials: "same-origin"
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Eroare la încărcarea coșului.");
+            }
+
+            return response.json();
+        })
+        .then(data => {
+            renderCart(data);
+        })
+        .catch(error => {
+            console.log(error);
+
+            document.getElementById("cart-container").innerHTML = `
+                <div class="empty-state">
+                    <h2>A apărut o eroare</h2>
+                    <p>Nu s-au putut încărca produsele din coș.</p>
+                    <a href="{% url 'books:book_list' %}" class="btn btn-primary">
+                        Întoarce-te la cumpărături
+                    </a>
+                </div>
+            `;
+
+            document.getElementById("cart-summary").innerHTML = "";
+        });
+    }
+
+    function renderCart(data) {
+        const container = document.getElementById("cart-container");
+        const summaryContainer = document.getElementById("cart-summary");
+
+        if (!data.items || data.items.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h2>Coșul tău este gol</h2>
+                    <p>Nu ai adăugat încă produse în coș. Poți reveni în catalog pentru a alege cărțile dorite.</p>
+
+                    <a href="{% url 'books:book_list' %}" class="btn btn-primary">
+                        Întoarce-te la cumpărături
+                    </a>
+                </div>
+            `;
+
+            summaryContainer.innerHTML = "";
+            return;
+        }
+
+        let html = "";
+
+        data.items.forEach(item => {
+            const coverHTML = item.book.cover
+                ? `
+                    <img
+                        src="${item.book.cover}"
+                        alt="${escapeHTML(item.book.title)}"
+                        class="book-cover"
+                        style="height: 170px;"
+                    >
+                `
+                : `
+                    <div class="book-cover-placeholder" style="height: 170px;">
+                        Fără copertă
+                    </div>
+                `;
+
+            html += `
+                <article class="cart-item">
+                    <div>
+                        ${coverHTML}
+                    </div>
+
+                    <div>
+                        <h3>${escapeHTML(item.book.title)}</h3>
+
+                        <p class="book-meta">
+                            Autor: ${escapeHTML(item.book.author)}
+                        </p>
+
+                        <p class="price">
+                            ${escapeHTML(item.book.price)} lei
+                        </p>
+
+                        <div class="form-row" style="max-width: 420px; align-items: end; margin-top: 14px;">
+                            <div>
+                                <label>Cantitate</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value="${item.quantity}"
+                                    class="quantity-input"
+                                    data-id="${item.id}"
+                                >
+                            </div>
+
+                            <div>
+                                <button
+                                    type="button"
+                                    class="btn btn-danger remove-cart-item-btn"
+                                    data-id="${item.id}">
+                                    Șterge
+                                </button>
+                            </div>
+                        </div>
+
+                        <p style="margin-top: 14px;">
+                            <strong>Total produs:</strong>
+                            ${escapeHTML(item.total_price)} lei
+                        </p>
+                    </div>
+                </article>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        summaryContainer.innerHTML = `
+            <aside class="cart-summary">
+                <h2>Sumar comandă</h2>
+
+                <p>
+                    <strong>Subtotal:</strong>
+                    ${escapeHTML(data.subtotal)} lei
+                </p>
+
+                <p>
+                    <strong>Transport:</strong>
+                    ${escapeHTML(data.shipping)} lei
+                </p>
+
+                <p class="total-line">
+                    Total: ${escapeHTML(data.total)} lei
+                </p>
+
+                <div class="form-actions">
+                    <button type="button" id="checkout-button" class="btn btn-primary">
+                        Finalizează comanda
+                    </button>
+
+                    <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+                        Continuă cumpărăturile
+                    </a>
+                </div>
+            </aside>
+        `;
+
+        attachCartEvents();
+
+        document.getElementById("checkout-button").addEventListener("click", function() {
+            window.location.href = "{% url 'orders:checkout' %}";
+        });
+    }
+
+    function attachCartEvents() {
+        document.querySelectorAll(".quantity-input").forEach(input => {
+            input.addEventListener("change", function() {
+                const itemId = this.dataset.id;
+                const quantity = this.value;
+
+                fetch(`/cart/api/update/${itemId}/`, {
+                    method: "PATCH",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json"
+                    },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        quantity: quantity
+                    })
+                })
+                .then(response => {
+                    return response.json().then(data => {
+                        return {
+                            ok: response.ok,
+                            data: data
+                        };
+                    });
+                })
+                .then(result => {
+                    if (!result.ok) {
+                        alert(result.data.message || "A apărut o eroare la actualizarea cantității.");
+                        loadCart();
+                        return;
+                    }
+
+                    loadCart();
+
+                    if (typeof loadGlobalCartBadge === "function") {
+                        loadGlobalCartBadge();
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert("A apărut o eroare la actualizarea cantității.");
+                });
+            });
+        });
+
+        document.querySelectorAll(".remove-cart-item-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const itemId = this.dataset.id;
+
+                const confirmDelete = confirm(
+                    "Sigur vrei să ștergi acest produs din coș?"
+                );
+
+                if (!confirmDelete) {
+                    return;
+                }
+
+                fetch(`/cart/api/remove/${itemId}/`, {
+                    method: "DELETE",
+                    headers: {
+                        "X-CSRFToken": csrfToken
+                    },
+                    credentials: "same-origin"
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadCart();
+
+                    if (typeof loadGlobalCartBadge === "function") {
+                        loadGlobalCartBadge();
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert("A apărut o eroare la ștergerea produsului.");
+                });
+            });
+        });
+    }
+
+    loadCart();
+</script>
+{% endblock %}

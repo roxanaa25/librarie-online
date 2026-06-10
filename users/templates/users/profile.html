@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Contul meu | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="page-title">
+    <h1>Contul meu</h1>
+    <span>Gestionează datele contului, comenzile plasate și cărțile salvate la favorite.</span>
+</section>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}error-box{% else %}success-box{% endif %}" style="margin-bottom: 18px;">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<section class="grid grid-2">
+
+    <div class="card">
+        <h2>Profil utilizator</h2>
+
+        <p class="book-meta">
+            <strong>Username:</strong> {{ user.username }}
+        </p>
+
+        <p class="book-meta">
+            <strong>Email:</strong>
+            {% if user.email %}
+                {{ user.email }}
+            {% else %}
+                Nu este setat
+            {% endif %}
+        </p>
+
+        <hr class="section-divider">
+
+        <h3>Setări cont</h3>
+
+        <div class="form-actions">
+            <a href="{% url 'password_change' %}" class="btn btn-secondary">
+                Resetează parola
+            </a>
+
+            <form action="{% url 'delete_account' %}" method="get" style="display:inline;">
+                <button type="submit" class="btn btn-danger">
+                    Șterge contul
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Activitatea mea</h2>
+
+        <div class="card card-compact" style="margin-bottom: 16px;">
+            <h3>Comenzile tale</h3>
+
+            <p class="book-meta">
+                Poți vedea istoricul comenzilor plasate, statusul fiecărei comenzi și detaliile produselor comandate.
+            </p>
+
+            <a href="{% url 'orders:my_orders' %}" class="btn btn-primary">
+                Vezi comenzile mele
+            </a>
+        </div>
+
+        <div class="card card-compact">
+            <h3>Cărți favorite</h3>
+
+            {% if favorites_count > 0 %}
+                <p class="book-meta">
+                    Ai {{ favorites_count }} cărți adăugate la favorite.
+                </p>
+
+                <a href="{% url 'favorite_list' %}" class="btn btn-primary">
+                    Vezi lista de favorite
+                </a>
+            {% else %}
+                <p class="book-meta">
+                    Nu ai adăugat încă nicio carte la favorite.
+                </p>
+
+                <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+                    Explorează catalogul
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+</section>
+
+<section style="margin-top: 28px;">
+    <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+        ← Înapoi la catalog
+    </a>
+</section>
+
+{% endblock %}

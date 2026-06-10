@@ -1,0 +1,94 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Librărie Online{% endblock %}</title>
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+    <header class="site-header">
+        <div class="navbar container">
+            <a href="{% url 'books:book_list' %}" class="logo">
+                <span>Librărie Online</span>
+            </a>
+
+            <nav class="nav-links">
+                <a href="{% url 'books:book_list' %}">Catalog</a>
+
+                {% if user.is_authenticated %}
+                    <a href="{% url 'cart:cart_detail' %}" class="cart-link">
+                         Coșul meu
+                        <span id="global-cart-badge" class="cart-badge hidden">0</span>
+                    </a>
+
+                    <a href="{% url 'profile' %}">Contul meu</a>
+
+                    <form action="{% url 'logout' %}" method="post" class="logout-form">
+                        {% csrf_token %}
+                        <button type="submit" class="nav-button">Logout</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}">Login</a>
+                    <a href="{% url 'register' %}" class="nav-register">Register</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main class="container page-content">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>Librărie Online — platformă web pentru explorarea și achiziționarea cărților</p>
+        </div>
+    </footer>
+
+    <script>
+        const globalUserIsAuthenticated = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+
+        function loadGlobalCartBadge() {
+            if (!globalUserIsAuthenticated) {
+                return;
+            }
+
+            const badge = document.getElementById("global-cart-badge");
+
+            if (!badge) {
+                return;
+            }
+
+            fetch("/cart/api/items/", {
+                credentials: "same-origin"
+            })
+            .then(response => response.json())
+            .then(data => {
+                const count = data.count || 0;
+
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.classList.remove("hidden");
+                } else {
+                    badge.classList.add("hidden");
+                }
+            })
+            .catch(error => {
+                console.log(error);
+            });
+        }
+
+        loadGlobalCartBadge();
+    </script>
+
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+</html>

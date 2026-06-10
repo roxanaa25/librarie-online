@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block title %}Înregistrare | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="auth-wrapper">
+    <div class="form-card auth-card">
+        <div class="page-title">
+            <h1>Creează cont</h1>
+            <span>Înregistrează-te pentru a putea salva cărți favorite, adăuga produse în coș și finaliza comenzi.</span>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            {% for field in form %}
+                <div style="margin-bottom: 16px;">
+                    <label for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                    </label>
+
+                    {{ field }}
+
+                    {% if field.help_text %}
+                        <p class="book-meta" style="margin-top: 6px;">
+                            {{ field.help_text }}
+                        </p>
+                    {% endif %}
+
+                    {% for error in field.errors %}
+                        <div class="error-box">
+                            {{ error }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+
+            {% if form.non_field_errors %}
+                {% for error in form.non_field_errors %}
+                    <div class="error-box">
+                        {{ error }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    Înregistrare
+                </button>
+
+                <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+                    Înapoi la catalog
+                </a>
+            </div>
+        </form>
+
+        <p class="auth-links">
+            Ai deja cont?
+            <a href="{% url 'login' %}">Loghează-te aici</a>
+        </p>
+    </div>
+</section>
+
+{% endblock %}

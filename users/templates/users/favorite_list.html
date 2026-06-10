@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Favoritele mele | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="page-title">
+    <h1>Favoritele mele</h1>
+    <span>Aici găsești cărțile pe care le-ai salvat pentru mai târziu.</span>
+</section>
+
+<section id="favorites-section">
+
+    {% if favorites %}
+        <div id="favorites-list">
+            {% for favorite in favorites %}
+                <article class="favorite-item" data-slug="{{ favorite.book.slug }}">
+
+                    <div>
+                        {% if favorite.book.cover %}
+                            <img
+                                src="{{ favorite.book.cover }}"
+                                alt="{{ favorite.book.title }}"
+                                class="book-cover"
+                                style="height: 180px;"
+                            >
+                        {% else %}
+                            <div class="book-cover-placeholder" style="height: 180px;">
+                                Fără copertă
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <h3>
+                            <a href="{% url 'books:book_detail' favorite.book.slug %}">
+                                {{ favorite.book.title }}
+                            </a>
+                        </h3>
+
+                        <p class="book-meta">
+                            <strong>Autor:</strong> {{ favorite.book.author }}
+                        </p>
+
+                        <p class="book-meta">
+                            <strong>Categorie:</strong> {{ favorite.book.category.name }}
+                        </p>
+
+                        <p class="price">
+                            {{ favorite.book.price }} lei
+                        </p>
+
+                        {% if favorite.book.stock > 0 %}
+                            <p class="stock-ok">
+                                În stoc: {{ favorite.book.stock }} buc.
+                            </p>
+                        {% else %}
+                            <p class="stock-empty">
+                                Stoc epuizat
+                            </p>
+                        {% endif %}
+
+                        <div class="form-actions">
+                            <a href="{% url 'books:book_detail' favorite.book.slug %}" class="btn btn-primary">
+                                Vezi detalii
+                            </a>
+
+                            <button
+                                type="button"
+                                class="btn btn-danger remove-favorite-btn"
+                                data-slug="{{ favorite.book.slug }}">
+                                ♥ Scoate de la favorite
+                            </button>
+                        </div>
+                    </div>
+
+                </article>
+            {% endfor %}
+        </div>
+
+        <div class="flex" style="margin-top: 28px; justify-content: center;">
+            {% if favorites.has_previous %}
+                <a href="?page=1" class="btn btn-secondary">Prima</a>
+                <a href="?page={{ favorites.previous_page_number }}" class="btn btn-secondary">Anterior</a>
+            {% endif %}
+
+            <span class="status-pill">
+                Pagina {{ favorites.number }} din {{ favorites.paginator.num_pages }}
+            </span>
+
+            {% if favorites.has_next %}
+                <a href="?page={{ favorites.next_page_number }}" class="btn btn-secondary">Următoarea</a>
+                <a href="?page={{ favorites.paginator.num_pages }}" class="btn btn-secondary">Ultima</a>
+            {% endif %}
+        </div>
+
+    {% else %}
+        <div class="empty-state">
+            <h2>Nu ai încă favorite</h2>
+            <p>Adaugă cărți la favorite ca să le găsești mai ușor mai târziu.</p>
+
+            <a href="{% url 'books:book_list' %}" class="btn btn-primary">
+                Explorează catalogul
+            </a>
+        </div>
+    {% endif %}
+
+</section>
+
+<div style="display:none;">
+    {% csrf_token %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function showEmptyFavoritesState() {
+        const section = document.getElementById("favorites-section");
+
+        section.innerHTML = `
+            <div class="empty-state">
+                <h2>Nu ai încă favorite</h2>
+                <p>Ai scos toate cărțile din lista de favorite.</p>
+
+                <a href="{% url 'books:book_list' %}" class="btn btn-primary">
+                    Întoarce-te la catalog
+                </a>
+            </div>
+        `;
+    }
+
+    document.querySelectorAll('.remove-favorite-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const slug = this.dataset.slug;
+            const item = document.querySelector(`.favorite-item[data-slug="${slug}"]`);
+
+            const confirmRemove = confirm(
+                "Sigur vrei să scoți această carte de la favorite?"
+            );
+
+            if (!confirmRemove) {
+                return;
+            }
+
+            fetch(`/api/favorites/toggle/${slug}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.is_favorite && item) {
+                    item.remove();
+
+                    const remainingItems = document.querySelectorAll(".favorite-item");
+
+                    if (remainingItems.length === 0) {
+                        showEmptyFavoritesState();
+                    }
+                }
+            })
+            .catch(error => {
+                console.log(error);
+                alert("A apărut o eroare la actualizarea listei de favorite.");
+            });
+        });
+    });
+</script>
+{% endblock %}

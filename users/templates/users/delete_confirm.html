@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Ștergere cont | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="auth-wrapper">
+    <div class="form-card auth-card">
+        <div class="page-title">
+            <h1>Ștergere cont</h1>
+            <span>Această acțiune este permanentă și nu poate fi anulată.</span>
+        </div>
+
+        <div class="error-box" style="margin-bottom: 18px;">
+            Ești sigură că vrei să ștergi contul?
+        </div>
+
+        <p>
+            Dacă alegi să continui, contul tău și datele asociate vor fi șterse din aplicație.
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">
+                    Da, șterge contul definitiv
+                </button>
+
+                <a href="{% url 'profile' %}" class="btn btn-secondary">
+                    Nu, m-am răzgândit
+                </a>
+            </div>
+        </form>
+    </div>
+</section>
+
+{% endblock %}

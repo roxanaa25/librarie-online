@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+
+{% block title %}Comenzile mele | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="page-title">
+    <h1>Comenzile mele</h1>
+    <span>Urmărește istoricul comenzilor, statusul plății și detaliile fiecărei comenzi plasate.</span>
+</section>
+
+<section>
+    <div id="orders-container">
+        <div class="empty-state">
+            <p>Se încarcă comenzile...</p>
+        </div>
+    </div>
+
+    <div id="pagination-container" class="flex" style="margin-top: 28px; justify-content: center;"></div>
+</section>
+
+<section style="margin-top: 28px;" class="flex">
+    <a href="{% url 'profile' %}" class="btn btn-secondary">
+        ← Înapoi la profil
+    </a>
+
+    <a href="{% url 'books:book_list' %}" class="btn btn-primary">
+        Continuă cumpărăturile
+    </a>
+</section>
+
+<form style="display:none;">
+    {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    let currentPage = 1;
+    const pageSize = 5;
+
+    function escapeHTML(value) {
+        if (value === null || value === undefined) {
+            return "";
+        }
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function getOrderStatusClass(orderStatus) {
+        if (orderStatus === "cancelled") {
+            return "status-pill status-danger";
+        }
+
+        if (orderStatus === "completed") {
+            return "status-pill status-paid";
+        }
+
+        return "status-pill";
+    }
+
+    function getPaymentStatusClass(paymentStatus) {
+        if (paymentStatus === "cancelled") {
+            return "status-pill status-danger";
+        }
+
+        if (paymentStatus === "paid") {
+            return "status-pill status-paid";
+        }
+
+        return "status-pill";
+    }
+
+    function loadOrders(page = 1) {
+        currentPage = page;
+
+        const container = document.getElementById("orders-container");
+        container.innerHTML = `
+            <div class="empty-state">
+                <p>Se încarcă comenzile...</p>
+            </div>
+        `;
+
+        fetch(`/orders/api/orders/?page=${page}&page_size=${pageSize}`, {
+            credentials: "same-origin"
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Eroare la încărcarea comenzilor.");
+            }
+
+            return response.json();
+        })
+        .then(data => {
+            const orders = data.results ? data.results : data;
+            renderOrders(orders);
+            renderPagination(data);
+        })
+        .catch(error => {
+            console.log(error);
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h2>A apărut o eroare</h2>
+                    <p>Nu s-au putut încărca momentan comenzile.</p>
+                </div>
+            `;
+        });
+    }
+
+    function renderOrders(orders) {
+        const container = document.getElementById("orders-container");
+
+        if (!orders.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h2>Nu ai plasat încă nicio comandă</h2>
+                    <p>După ce finalizezi o comandă, aceasta va apărea aici.</p>
+
+                    <a href="{% url 'books:book_list' %}" class="btn btn-primary">
+                        Explorează catalogul
+                    </a>
+                </div>
+            `;
+            return;
+        }
+
+        let html = `<div class="grid">`;
+
+        orders.forEach(order => {
+            let cancelButton = "";
+
+            if (order.order_status !== "completed" && order.order_status !== "cancelled") {
+                cancelButton = `
+                    <button 
+                        type="button"
+                        class="btn btn-danger cancel-order-btn"
+                        data-id="${order.id}">
+                        Anulează comanda
+                    </button>
+                `;
+            }
+
+            html += `
+                <article class="card">
+                    <div class="flex" style="justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h3>Comanda #${order.id}</h3>
+                            <p class="book-meta">Data: ${escapeHTML(order.created_at)}</p>
+                        </div>
+
+                        <div class="flex">
+                            <span class="${getPaymentStatusClass(order.payment_status)}">
+                                ${escapeHTML(order.payment_status_display)}
+                            </span>
+
+                            <span class="${getOrderStatusClass(order.order_status)}">
+                                ${escapeHTML(order.order_status_display)}
+                            </span>
+                        </div>
+                    </div>
+
+                    <hr class="section-divider">
+
+                    <div class="grid grid-3">
+                        <div>
+                            <p class="book-meta">Total comandă</p>
+                            <p class="total-line">${escapeHTML(order.total)} lei</p>
+                        </div>
+
+                        <div>
+                            <p class="book-meta">Metodă de plată</p>
+                            <p><strong>${escapeHTML(order.payment_method_display)}</strong></p>
+                        </div>
+
+                        <div>
+                            <p class="book-meta">Produse</p>
+                            <p><strong>${order.items ? order.items.length : 0} ${order.items && order.items.length === 1 ? 'produs' : 'produse'}</strong></p>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <a href="/orders/my-orders/${order.id}/" class="btn btn-primary">
+                            Vezi detalii
+                        </a>
+
+                        ${cancelButton}
+                    </div>
+                </article>
+            `;
+        });
+
+        html += `</div>`;
+
+        container.innerHTML = html;
+
+        attachCancelEvents();
+    }
+
+    function renderPagination(data) {
+        const paginationContainer = document.getElementById("pagination-container");
+
+        if (!data.count) {
+            paginationContainer.innerHTML = "";
+            return;
+        }
+
+        const totalPages = Math.ceil(data.count / pageSize);
+
+        if (totalPages <= 1) {
+            paginationContainer.innerHTML = "";
+            return;
+        }
+
+        let html = "";
+
+        if (currentPage > 1) {
+            html += `<button type="button" class="btn btn-secondary" onclick="loadOrders(1)">Prima</button>`;
+            html += `<button type="button" class="btn btn-secondary" onclick="loadOrders(${currentPage - 1})">Anterior</button>`;
+        }
+
+        html += `<span class="status-pill">Pagina ${currentPage} din ${totalPages}</span>`;
+
+        if (currentPage < totalPages) {
+            html += `<button type="button" class="btn btn-secondary" onclick="loadOrders(${currentPage + 1})">Următoarea</button>`;
+            html += `<button type="button" class="btn btn-secondary" onclick="loadOrders(${totalPages})">Ultima</button>`;
+        }
+
+        paginationContainer.innerHTML = html;
+    }
+
+    function attachCancelEvents() {
+        document.querySelectorAll(".cancel-order-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const orderId = this.dataset.id;
+
+                const confirmCancel = confirm(
+                    "Sigur vrei să anulezi această comandă? Această acțiune va schimba statusul comenzii în „Anulată”."
+                );
+
+                if (!confirmCancel) {
+                    return;
+                }
+
+                fetch(`/orders/api/cancel/${orderId}/`, {
+                    method: "PATCH",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json"
+                    },
+                    credentials: "same-origin"
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    loadOrders(currentPage);
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert("A apărut o eroare la anularea comenzii.");
+                });
+            });
+        });
+    }
+
+    loadOrders(1);
+</script>
+{% endblock %}

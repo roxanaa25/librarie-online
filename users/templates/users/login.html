@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}Autentificare | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="auth-wrapper">
+    <div class="form-card auth-card">
+        <div class="page-title">
+            <h1>Autentificare</h1>
+            <span>Intră în cont pentru a salva favorite, a adăuga cărți în coș și a plasa comenzi.</span>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message-box">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if form.errors %}
+            <div class="error-box">
+                Datele introduse nu sunt corecte. Verifică utilizatorul și parola.
+            </div>
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div style="margin-bottom: 16px;">
+                <label for="username">Utilizator</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    required
+                    placeholder="Introdu numele de utilizator">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label for="password">Parolă</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    placeholder="Introdu parola">
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    Intră în cont
+                </button>
+
+                <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+                    Înapoi la catalog
+                </a>
+            </div>
+        </form>
+
+        <p class="auth-links">
+            Nu ai cont?
+            <a href="{% url 'register' %}">Creează unul aici</a>
+        </p>
+    </div>
+</section>
+
+{% endblock %}

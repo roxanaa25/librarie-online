@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Comandă plasată | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="auth-wrapper">
+    <div class="form-card" style="width: min(720px, 100%);">
+        <div class="page-title">
+            <h1>Comanda a fost plasată cu succes!</h1>
+            <span>Îți mulțumim pentru comandă. Detaliile acesteia sunt afișate mai jos.</span>
+        </div>
+
+        <div class="message-box" style="margin-bottom: 22px;">
+            Comanda #{{ order.id }} a fost înregistrată cu succes.
+        </div>
+
+        <section class="card card-compact" style="margin-bottom: 20px;">
+            <h2>Sumar comandă</h2>
+
+            <p>
+                <strong>Număr comandă:</strong>
+                #{{ order.id }}
+            </p>
+
+            <p>
+                <strong>Total:</strong>
+                {{ order.total }} lei
+            </p>
+
+            <p>
+                <strong>Metodă de plată:</strong>
+                {{ order.get_payment_method_display }}
+            </p>
+
+            <p>
+                <strong>Status plată:</strong>
+                <span class="{% if order.payment_status == 'paid' %}status-pill status-paid{% elif order.payment_status == 'cancelled' %}status-pill status-danger{% else %}status-pill{% endif %}">
+                    {{ order.get_payment_status_display }}
+                </span>
+            </p>
+
+            <p>
+                <strong>Status comandă:</strong>
+                <span class="{% if order.order_status == 'cancelled' %}status-pill status-danger{% elif order.order_status == 'completed' %}status-pill status-paid{% else %}status-pill{% endif %}">
+                    {{ order.get_order_status_display }}
+                </span>
+            </p>
+        </section>
+
+        <section class="card card-compact">
+            <h2>Produse comandate</h2>
+
+            {% for item in order.items.all %}
+                <article class="order-item">
+                    <div class="book-cover-placeholder" style="height: 120px;">
+                        Carte
+                    </div>
+
+                    <div>
+                        <h3>{{ item.book_title }}</h3>
+
+                        <p class="book-meta">
+                            Cantitate: {{ item.quantity }}
+                        </p>
+
+                        <p class="book-meta">
+                            Preț unitar: {{ item.unit_price }} lei
+                        </p>
+
+                        <p>
+                            <strong>Total produs:</strong>
+                            {{ item.total_price }} lei
+                        </p>
+                    </div>
+                </article>
+            {% empty %}
+                <p class="book-meta">
+                    Nu există produse asociate acestei comenzi.
+                </p>
+            {% endfor %}
+        </section>
+
+        <div class="form-actions">
+            <a href="{% url 'orders:my_orders' %}" class="btn btn-primary">
+                Vezi comenzile mele
+            </a>
+
+            <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+                Înapoi la catalog
+            </a>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

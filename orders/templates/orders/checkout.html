@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block title %}Finalizare comandă | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="page-title">
+    <h1>Finalizare comandă</h1>
+    <span>Completează datele de livrare și alege metoda de plată pentru comanda ta.</span>
+</section>
+
+<section class="grid grid-2">
+
+    <div class="form-card">
+        <h2>Date de livrare</h2>
+
+        <form id="checkout-form">
+            {% csrf_token %}
+
+            <div class="form-row">
+                <div>
+                    <label for="full-name">Nume complet</label>
+                    <input type="text" id="full-name" required placeholder="Ex: Roxana Popescu">
+                </div>
+
+                <div>
+                    <label for="phone">Telefon</label>
+                    <input type="text" id="phone" required placeholder="Ex: 07xxxxxxxx">
+                </div>
+            </div>
+
+            <div style="margin-top: 16px;">
+                <label for="address">Adresă</label>
+                <input type="text" id="address" required placeholder="Stradă, număr, bloc, apartament">
+            </div>
+
+            <div class="form-row" style="margin-top: 16px;">
+                <div>
+                    <label for="city">Oraș</label>
+                    <input type="text" id="city" required placeholder="Ex: București">
+                </div>
+
+                <div>
+                    <label for="county">Județ</label>
+                    <input type="text" id="county" required placeholder="Ex: Ilfov">
+                </div>
+            </div>
+
+            <div class="form-row" style="margin-top: 16px;">
+                <div>
+                    <label for="postal-code">Cod poștal</label>
+                    <input type="text" id="postal-code" placeholder="Opțional">
+                </div>
+
+                <div>
+                    <label for="payment-method">Metodă de plată</label>
+                    <select id="payment-method" required>
+                        <option value="cash">Ramburs la livrare</option>
+                        <option value="card">Card online - Stripe Checkout</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" id="place-order-btn" class="btn btn-primary">
+                    Plasează comanda
+                </button>
+
+                <a href="{% url 'cart:cart_detail' %}" class="btn btn-secondary">
+                    Înapoi la coș
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <aside class="checkout-summary">
+        <h2>Sumar comandă</h2>
+
+        <div style="margin-top: 18px;">
+            {% for item in cart_items %}
+                <article class="card card-compact" style="margin-bottom: 14px;">
+                    <h3 style="font-size: 18px;">{{ item.book.title }}</h3>
+
+                    <p class="book-meta">
+                        Cantitate: {{ item.quantity }}
+                    </p>
+
+                    <p class="book-meta">
+                        Preț unitar: {{ item.book.price }} lei
+                    </p>
+
+                    <p>
+                        <strong>Total produs:</strong> {{ item.total_price }} lei
+                    </p>
+                </article>
+            {% endfor %}
+        </div>
+
+        <hr class="section-divider">
+
+        <p>
+            <strong>Subtotal:</strong>
+            {{ subtotal }} lei
+        </p>
+
+        <p>
+            <strong>Transport:</strong>
+            {{ shipping }} lei
+        </p>
+
+        <p class="total-line">
+            Total: {{ total }} lei
+        </p>
+
+        <p class="book-meta">
+            Plata cu cardul este procesată prin Stripe Checkout în modul de testare.
+        </p>
+    </aside>
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const checkoutForm = document.getElementById("checkout-form");
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const placeOrderButton = document.getElementById("place-order-btn");
+
+    checkoutForm.addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        placeOrderButton.disabled = true;
+        placeOrderButton.textContent = "Se procesează...";
+
+        const data = {
+            full_name: document.getElementById("full-name").value.trim(),
+            phone: document.getElementById("phone").value.trim(),
+            address: document.getElementById("address").value.trim(),
+            city: document.getElementById("city").value.trim(),
+            county: document.getElementById("county").value.trim(),
+            postal_code: document.getElementById("postal-code").value.trim(),
+            payment_method: document.getElementById("payment-method").value
+        };
+
+        fetch("{% url 'orders:create-checkout-session' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken,
+                "Content-Type": "application/json"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            return response.json().then(data => {
+                return {
+                    ok: response.ok,
+                    data: data
+                };
+            });
+        })
+        .then(result => {
+            if (!result.ok) {
+                alert(result.data.message || "A apărut o eroare la plasarea comenzii.");
+                placeOrderButton.disabled = false;
+                placeOrderButton.textContent = "Plasează comanda";
+                return;
+            }
+
+            if (result.data.checkout_url) {
+                window.location.href = result.data.checkout_url;
+            } else if (result.data.redirect_url) {
+                window.location.href = result.data.redirect_url;
+            } else if (result.data.message) {
+                alert(result.data.message);
+                placeOrderButton.disabled = false;
+                placeOrderButton.textContent = "Plasează comanda";
+            } else {
+                alert("A apărut o eroare la plasarea comenzii.");
+                placeOrderButton.disabled = false;
+                placeOrderButton.textContent = "Plasează comanda";
+            }
+        })
+        .catch(error => {
+            console.log(error);
+            alert("A apărut o eroare la finalizarea comenzii.");
+            placeOrderButton.disabled = false;
+            placeOrderButton.textContent = "Plasează comanda";
+        });
+    });
+</script>
+{% endblock %}

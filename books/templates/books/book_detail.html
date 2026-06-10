@@ -1,0 +1,672 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ book.title }} | BookNest{% endblock %}
+
+{% block content %}
+
+<a href="{% url 'books:book_list' %}?page={{ request.GET.page }}" class="btn btn-secondary">
+    ← Înapoi la catalog
+</a>
+
+<section class="detail-layout" style="margin-top: 28px;">
+
+    <div class="card">
+        {% if book.cover %}
+            <img src="{{ book.cover }}" alt="{{ book.title }}" class="detail-cover">
+        {% else %}
+            <div class="book-cover-placeholder detail-cover">
+                Fără copertă
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="card detail-info">
+        <div class="page-title">
+            <h1>{{ book.title }}</h1>
+            <span>Detalii despre carte, disponibilitate și recenzii</span>
+        </div>
+
+        <p class="book-meta"><strong>Autor:</strong> {{ book.author }}</p>
+        <p class="book-meta"><strong>Categorie:</strong> {{ book.category.name }}</p>
+        <p class="price">{{ book.price }} lei</p>
+
+        {% if book.stock > 0 %}
+            <p class="stock-ok">În stoc: {{ book.stock }} bucăți disponibile</p>
+        {% else %}
+            <p class="stock-empty">Stoc epuizat</p>
+        {% endif %}
+
+        <div id="book-rating-summary" class="rating" style="margin: 16px 0;">
+            Se încarcă ratingul...
+        </div>
+
+        <hr class="section-divider">
+
+        <h3>Descriere</h3>
+        <p>{{ book.description }}</p>
+
+        <div class="detail-actions">
+
+            {% if user.is_authenticated %}
+                <form action="{% url 'books:toggle_favorite' book.slug %}" method="post">
+                    {% csrf_token %}
+
+                    {% if is_favorite %}
+                        <button type="submit" class="btn btn-danger">
+                            ❤️ Scoate de la favorite
+                        </button>
+                    {% else %}
+                        <button type="submit" class="btn btn-warning">
+                            ♡ Adaugă la favorite
+                        </button>
+                    {% endif %}
+                </form>
+            {% else %}
+                <button type="button" class="btn btn-warning" onclick="showFavoriteLoginPopup()">
+                    ♡ Adaugă la favorite
+                </button>
+            {% endif %}
+
+            {% if user.is_authenticated %}
+                {% if book.stock > 0 %}
+                    <button
+                        type="button"
+                        id="add-to-cart-detail-btn"
+                        data-id="{{ book.id }}"
+                        class="btn btn-primary">
+                         Adaugă în coș
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-secondary" disabled>
+                        Indisponibil momentan
+                    </button>
+                {% endif %}
+            {% else %}
+                <button type="button" class="btn btn-primary" onclick="showCartLoginPopup()">
+                     Adaugă în coș
+                </button>
+            {% endif %}
+
+        </div>
+    </div>
+
+</section>
+
+<hr class="section-divider">
+
+<section id="reviews-section">
+    <div class="page-title">
+        <h2>Recenzii</h2>
+        <span>Vezi opiniile utilizatorilor și ratingul acordat acestei cărți.</span>
+    </div>
+
+    {% if user.is_authenticated %}
+        <div class="form-card" style="margin-bottom: 28px;">
+            <h3>Adaugă o recenzie</h3>
+
+            <form id="review-form">
+                {% csrf_token %}
+
+                <label>Alege ratingul:</label>
+
+                <div id="rating-stars" style="margin: 10px 0 16px;">
+                    <button type="button" class="rating-star" data-value="1">☆</button>
+                    <button type="button" class="rating-star" data-value="2">☆</button>
+                    <button type="button" class="rating-star" data-value="3">☆</button>
+                    <button type="button" class="rating-star" data-value="4">☆</button>
+                    <button type="button" class="rating-star" data-value="5">☆</button>
+                </div>
+
+                <input type="hidden" id="rating-value">
+
+                <label for="review-comment">Comentariul tău:</label>
+                <textarea
+                    id="review-comment"
+                    placeholder="Scrie recenzia ta..."
+                    required
+                    rows="5"></textarea>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">
+                        Trimite recenzia
+                    </button>
+                </div>
+            </form>
+        </div>
+    {% else %}
+        <div class="empty-state" style="margin-bottom: 28px;">
+            <p>
+                <a href="{% url 'login' %}">Loghează-te</a>
+                pentru a adăuga o recenzie.
+            </p>
+        </div>
+    {% endif %}
+
+    <div id="reviews-list">
+        <div class="empty-state">
+            <p>Se încarcă recenziile...</p>
+        </div>
+    </div>
+</section>
+
+<form style="display:none;">
+    {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const bookSlug = "{{ book.slug }}";
+    const userIsAuthenticated = "{{ user.is_authenticated|yesno:'true,false' }}" === "true";
+    const csrfInput = document.querySelector("[name=csrfmiddlewaretoken]");
+    const csrfToken = csrfInput ? csrfInput.value : "";
+
+    let selectedRating = 0;
+
+    function escapeHTML(value) {
+        if (value === null || value === undefined) {
+            return "";
+        }
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function showFavoriteLoginPopup() {
+        let goToLogin = confirm(
+            "Pentru a adăuga această carte la favorite trebuie să fii autentificat.\n\n" +
+            "Dacă nu ai cont, îți poți crea unul.\n\n" +
+            "Apasă OK pentru login."
+        );
+
+        if (goToLogin) {
+            window.location.href = "{% url 'login' %}";
+        }
+    }
+
+    function showCartLoginPopup() {
+        let goToLogin = confirm(
+            "Pentru a adăuga produse în coș trebuie să fii autentificat.\n\n" +
+            "Dacă nu ai cont, îți poți crea unul.\n\n" +
+            "Apasă OK pentru login."
+        );
+
+        if (goToLogin) {
+            window.location.href = "{% url 'login' %}";
+        }
+    }
+
+    function renderStars(rating) {
+        const roundedRating = Math.round(Number(rating) || 0);
+        let stars = "";
+
+        for (let i = 1; i <= 5; i++) {
+            stars += i <= roundedRating ? "★" : "☆";
+        }
+
+        return stars;
+    }
+
+    function updateSelectedStars(rating) {
+        document.querySelectorAll(".rating-star").forEach(button => {
+            const value = parseInt(button.dataset.value);
+            button.textContent = value <= rating ? "★" : "☆";
+        });
+    }
+
+    document.querySelectorAll(".rating-star").forEach(button => {
+        button.addEventListener("click", function() {
+            selectedRating = parseInt(this.dataset.value);
+            document.getElementById("rating-value").value = selectedRating;
+            updateSelectedStars(selectedRating);
+        });
+    });
+
+    const addToCartDetailButton = document.getElementById("add-to-cart-detail-btn");
+
+    if (addToCartDetailButton) {
+        addToCartDetailButton.addEventListener("click", function() {
+            const bookId = this.dataset.id;
+
+            fetch("/cart/api/add/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "Content-Type": "application/json"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    book_id: bookId,
+                    quantity: 1
+                })
+            })
+            .then(response => {
+                return response.json().then(data => {
+                    return {
+                        ok: response.ok,
+                        data: data
+                    };
+                });
+            })
+            .then(result => {
+                if (!result.ok) {
+                    alert(result.data.message || "A apărut o eroare la adăugarea produsului în coș.");
+                    return;
+                }
+
+                alert(result.data.message);
+
+                if (typeof loadGlobalCartBadge === "function") {
+                    loadGlobalCartBadge();
+                }
+            })
+            .catch(error => {
+                console.log(error);
+                alert("A apărut o eroare la adăugarea produsului în coș.");
+            });
+        });
+    }
+
+    function loadReviews() {
+        fetch(`/reviews/api/books/${bookSlug}/reviews/`, {
+            credentials: "same-origin"
+        })
+        .then(response => response.json())
+        .then(reviews => {
+            renderReviews(reviews);
+            renderReviewSummary(reviews);
+        })
+        .catch(error => {
+            console.log(error);
+            document.getElementById("reviews-list").innerHTML = `
+                <div class="empty-state">
+                    <p>A apărut o eroare la încărcarea recenziilor.</p>
+                </div>
+            `;
+        });
+    }
+
+    function renderReviewSummary(reviews) {
+        const summary = document.getElementById("book-rating-summary");
+
+        if (!reviews.length) {
+            summary.innerHTML = "Rating: ☆☆☆☆☆ <span class='book-meta'>(0.0/5, 0 recenzii)</span>";
+            return;
+        }
+
+        const ratings = reviews
+            .filter(review => review.rating)
+            .map(review => Number(review.rating));
+
+        if (!ratings.length) {
+            summary.innerHTML = "Rating: ☆☆☆☆☆ <span class='book-meta'>(0.0/5, 0 recenzii)</span>";
+            return;
+        }
+
+        const average = ratings.reduce((sum, value) => sum + value, 0) / ratings.length;
+
+        summary.innerHTML = `
+            Rating:
+            ${renderStars(average)}
+            <span class="book-meta">
+                (${average.toFixed(1)}/5, ${ratings.length} recenzii)
+            </span>
+        `;
+    }
+
+    function renderReviews(reviews) {
+        const container = document.getElementById("reviews-list");
+
+        if (!reviews.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>Nu există încă recenzii</h3>
+                    <p>Fii prima persoană care lasă o opinie despre această carte.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = "";
+
+        reviews.forEach(review => {
+            let repliesHTML = "";
+
+            if (review.replies && review.replies.length > 0) {
+                review.replies.forEach(reply => {
+                    repliesHTML += `
+                        <div class="reply-card">
+                            <strong>${escapeHTML(reply.username)}</strong>
+                            <p>${escapeHTML(reply.comment)}</p>
+                            <small>${escapeHTML(reply.created_at)}</small>
+                        </div>
+                    `;
+                });
+            }
+
+            let actionsHTML = "";
+
+            if (review.can_edit) {
+                actionsHTML += `
+                    <button 
+                        type="button"
+                        class="btn btn-secondary show-edit-form"
+                        data-id="${review.id}">
+                        Editează
+                    </button>
+                `;
+            }
+
+            if (review.can_delete) {
+                actionsHTML += `
+                    <button 
+                        type="button"
+                        class="btn btn-danger delete-review-btn"
+                        data-id="${review.id}">
+                        Șterge
+                    </button>
+                `;
+            }
+
+            if (review.can_reply) {
+                actionsHTML += `
+                    <button 
+                        type="button" 
+                        class="btn btn-outline show-reply-form" 
+                        data-id="${review.id}">
+                        Răspunde ca admin
+                    </button>
+                `;
+            }
+
+            let editFormHTML = "";
+
+            if (review.can_edit) {
+                editFormHTML = `
+                    <form class="edit-review-form form-card" data-id="${review.id}" style="display:none; margin-top: 14px;">
+                        <label>Editează ratingul:</label>
+
+                        <div class="edit-rating-stars" data-id="${review.id}" style="margin: 8px 0 14px;">
+                            <button type="button" class="edit-rating-star" data-review-id="${review.id}" data-value="1">☆</button>
+                            <button type="button" class="edit-rating-star" data-review-id="${review.id}" data-value="2">☆</button>
+                            <button type="button" class="edit-rating-star" data-review-id="${review.id}" data-value="3">☆</button>
+                            <button type="button" class="edit-rating-star" data-review-id="${review.id}" data-value="4">☆</button>
+                            <button type="button" class="edit-rating-star" data-review-id="${review.id}" data-value="5">☆</button>
+                        </div>
+
+                        <input type="hidden" class="edit-rating-value" data-id="${review.id}" value="${review.rating}">
+
+                        <label>Comentariu:</label>
+                        <textarea 
+                            class="edit-review-comment"
+                            rows="4">${escapeHTML(review.comment)}</textarea>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Salvează modificările</button>
+                        </div>
+                    </form>
+                `;
+            }
+
+            let replyFormHTML = "";
+
+            if (review.can_reply) {
+                replyFormHTML = `
+                    <form class="reply-form form-card" data-id="${review.id}" style="display:none; margin-top:14px;">
+                        <label>Răspuns admin:</label>
+
+                        <textarea
+                            class="reply-comment"
+                            placeholder="Scrie un răspuns..."
+                            rows="3"
+                            required></textarea>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                Trimite răspunsul
+                            </button>
+                        </div>
+                    </form>
+                `;
+            }
+
+            html += `
+                <article class="review-card">
+                    <div class="flex" style="justify-content: space-between;">
+                        <strong>${escapeHTML(review.username)}</strong>
+                        <small class="book-meta">${escapeHTML(review.created_at)}</small>
+                    </div>
+
+                    <p class="rating" style="font-size: 20px;">
+                        ${renderStars(review.rating)}
+                        <span class="book-meta">(${review.rating}/5)</span>
+                    </p>
+
+                    <p>${escapeHTML(review.comment)}</p>
+
+                    <div class="flex" style="margin-top: 12px;">
+                        ${actionsHTML}
+                    </div>
+
+                    ${editFormHTML}
+                    ${replyFormHTML}
+                    ${repliesHTML}
+                </article>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        attachReviewActionEvents();
+    }
+
+    function updateEditStars(reviewId, rating) {
+        document.querySelectorAll(`.edit-rating-star[data-review-id="${reviewId}"]`).forEach(button => {
+            const value = parseInt(button.dataset.value);
+            button.textContent = value <= rating ? "★" : "☆";
+        });
+    }
+
+    function attachReviewActionEvents() {
+        document.querySelectorAll(".show-edit-form").forEach(button => {
+            button.addEventListener("click", function() {
+                const reviewId = this.dataset.id;
+                const form = document.querySelector(`.edit-review-form[data-id="${reviewId}"]`);
+                const ratingInput = document.querySelector(`.edit-rating-value[data-id="${reviewId}"]`);
+
+                if (form.style.display === "none") {
+                    form.style.display = "block";
+                    updateEditStars(reviewId, parseInt(ratingInput.value));
+                } else {
+                    form.style.display = "none";
+                }
+            });
+        });
+
+        document.querySelectorAll(".edit-rating-star").forEach(button => {
+            button.addEventListener("click", function() {
+                const reviewId = this.dataset.reviewId;
+                const rating = parseInt(this.dataset.value);
+                const ratingInput = document.querySelector(`.edit-rating-value[data-id="${reviewId}"]`);
+
+                ratingInput.value = rating;
+                updateEditStars(reviewId, rating);
+            });
+        });
+
+        document.querySelectorAll(".edit-review-form").forEach(form => {
+            form.addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const reviewId = this.dataset.id;
+                const comment = this.querySelector(".edit-review-comment").value.trim();
+                const rating = this.querySelector(".edit-rating-value").value;
+
+                if (!comment) {
+                    alert("Comentariul nu poate fi gol.");
+                    return;
+                }
+
+                fetch(`/reviews/api/reviews/${reviewId}/`, {
+                    method: "PATCH",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json"
+                    },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        rating: rating,
+                        comment: comment
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                    }
+
+                    loadReviews();
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert("A apărut o eroare la editarea recenziei.");
+                });
+            });
+        });
+
+        document.querySelectorAll(".delete-review-btn").forEach(button => {
+            button.addEventListener("click", function() {
+                const reviewId = this.dataset.id;
+
+                const confirmDelete = confirm(
+                    "Sigur vrei să ștergi această recenzie?"
+                );
+
+                if (!confirmDelete) {
+                    return;
+                }
+
+                fetch(`/reviews/api/reviews/${reviewId}/`, {
+                    method: "DELETE",
+                    headers: {
+                        "X-CSRFToken": csrfToken
+                    },
+                    credentials: "same-origin"
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    loadReviews();
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert("A apărut o eroare la ștergerea recenziei.");
+                });
+            });
+        });
+
+        document.querySelectorAll(".show-reply-form").forEach(button => {
+            button.addEventListener("click", function() {
+                const reviewId = this.dataset.id;
+                const form = document.querySelector(`.reply-form[data-id="${reviewId}"]`);
+
+                form.style.display = form.style.display === "none" ? "block" : "none";
+            });
+        });
+
+        document.querySelectorAll(".reply-form").forEach(form => {
+            form.addEventListener("submit", function(event) {
+                event.preventDefault();
+
+                const reviewId = this.dataset.id;
+                const comment = this.querySelector(".reply-comment").value.trim();
+
+                if (!comment) {
+                    alert("Răspunsul nu poate fi gol.");
+                    return;
+                }
+
+                fetch(`/reviews/api/books/${bookSlug}/reviews/`, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json"
+                    },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        parent_id: reviewId,
+                        comment: comment
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                    } else {
+                        loadReviews();
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert("A apărut o eroare la trimiterea răspunsului.");
+                });
+            });
+        });
+    }
+
+    const reviewForm = document.getElementById("review-form");
+
+    if (reviewForm) {
+        reviewForm.addEventListener("submit", function(event) {
+            event.preventDefault();
+
+            const comment = document.getElementById("review-comment").value.trim();
+
+            if (!selectedRating) {
+                alert("Alege un rating de la 1 la 5 stele.");
+                return;
+            }
+
+            if (!comment) {
+                alert("Comentariul nu poate fi gol.");
+                return;
+            }
+
+            fetch(`/reviews/api/books/${bookSlug}/reviews/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "Content-Type": "application/json"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({
+                    rating: selectedRating,
+                    comment: comment
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else {
+                    document.getElementById("review-comment").value = "";
+                    selectedRating = 0;
+                    updateSelectedStars(0);
+                    loadReviews();
+                }
+            })
+            .catch(error => {
+                console.log(error);
+                alert("A apărut o eroare la trimiterea recenziei.");
+            });
+        });
+    }
+
+    loadReviews();
+</script>
+{% endblock %}

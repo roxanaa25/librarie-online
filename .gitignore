@@ -1,0 +1,36 @@
+# Environment variables
+.env
+
+# Virtual environment
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Media files
+media/
+
+# Logs
+*.log
+
+# Database
+*.sqlite3
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Import script
+import_books.py
+
+# Test data
+data/
+
+# CERINTE folder
+CERINTE/

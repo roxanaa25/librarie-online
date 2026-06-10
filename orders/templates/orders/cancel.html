@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block title %}Plată anulată | BookNest{% endblock %}
+
+{% block content %}
+
+<section class="auth-wrapper">
+    <div class="form-card auth-card">
+        <div class="page-title">
+            <h1>Plată anulată</h1>
+            <span>Comanda nu a fost finalizată prin card.</span>
+        </div>
+
+        <div class="error-box" style="margin-bottom: 18px;">
+            Plata cu cardul a fost anulată sau nu a fost finalizată.
+        </div>
+
+        <p>
+            Poți reveni în coș pentru a încerca din nou plata sau poți modifica produsele înainte de finalizarea comenzii.
+        </p>
+
+        <div class="form-actions">
+            <a href="{% url 'cart:cart_detail' %}" class="btn btn-primary">
+                Înapoi la coș
+            </a>
+
+            <a href="{% url 'books:book_list' %}" class="btn btn-secondary">
+                Continuă cumpărăturile
+            </a>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
