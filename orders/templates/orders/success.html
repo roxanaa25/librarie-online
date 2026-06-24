@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Comandă plasată | BookNest{% endblock %}
+{% block title %}Comandă plasată {% endblock %}
 
 {% block content %}
 
@@ -53,8 +53,19 @@
 
             {% for item in order.items.all %}
                 <article class="order-item">
-                    <div class="book-cover-placeholder" style="height: 120px;">
-                        Carte
+                    <div>
+                        {% if item.book and item.book.cover %}
+                            <img
+                                src="{{ item.book.cover }}"
+                                alt="{{ item.book_title }}"
+                                class="book-cover"
+                                style="height: 120px; width: 120px; object-fit: cover; margin-bottom: 0;"
+                            >
+                        {% else %}
+                            <div class="book-cover-placeholder" style="height: 120px; width: 120px; margin-bottom: 0;">
+                                Carte
+                            </div>
+                        {% endif %}
                     </div>
 
                     <div>

@@ -4,6 +4,7 @@ from .models import Order, OrderItem
 
 class OrderItemSerializer(serializers.ModelSerializer):
     total_price = serializers.SerializerMethodField()
+    cover = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -12,11 +13,17 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'book_title',
             'quantity',
             'unit_price',
-            'total_price'
+            'total_price',
+            'cover'
         ]
 
     def get_total_price(self, obj):
         return obj.total_price
+
+    def get_cover(self, obj):
+        if obj.book and obj.book.cover:
+            return obj.book.cover
+        return None
 
 
 class OrderSerializer(serializers.ModelSerializer):
