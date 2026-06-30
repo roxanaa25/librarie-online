@@ -28,6 +28,10 @@
 
                     <a href="{% url 'profile' %}">Contul meu</a>
 
+                    {% if user.is_staff %}
+                        <a href="/admin/" class="btn btn-secondary">Admin</a>
+                    {% endif %}
+
                     <form action="{% url 'logout' %}" method="post" class="logout-form">
                         {% csrf_token %}
                         <button type="submit" class="nav-button">Logout</button>

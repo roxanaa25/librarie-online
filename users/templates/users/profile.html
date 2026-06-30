@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Contul meu | BookNest{% endblock %}
+{% block title %}Contul meu {% endblock %}
 
 {% block content %}
 
@@ -26,14 +26,7 @@
             <strong>Username:</strong> {{ user.username }}
         </p>
 
-        <p class="book-meta">
-            <strong>Email:</strong>
-            {% if user.email %}
-                {{ user.email }}
-            {% else %}
-                Nu este setat
-            {% endif %}
-        </p>
+       
 
         <hr class="section-divider">
 

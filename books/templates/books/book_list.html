@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Catalog cărți | BookNest{% endblock %}
+{% block title %}Catalog cărți {% endblock %}
 
 {% block content %}
 
@@ -338,7 +338,7 @@
                 <p class="rating">
                     ${renderStars(averageRating)}
                     <span class="book-meta">
-                        (${averageRating.toFixed(1)}/5, ${reviewsCount} recenzii)
+                        (${averageRating.toFixed(1)}/5, ${reviewsCount} ${reviewsCount === 1 ? 'recenzie' : 'recenzii'})
                     </span>
                 </p>
             `;
